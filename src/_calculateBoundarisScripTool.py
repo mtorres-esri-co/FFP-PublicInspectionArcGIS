@@ -9,7 +9,7 @@ CONFIG_PATH = "debug.json"
 
 if ToolboxLogger._logger is None:
     ToolboxLogger.initLogger(handler_type = STREAM_HANDLER)
-    ToolboxLogger.setDebugLevel()
+ToolboxLogger.setDebugLevel()
 
 folder_path = os.path.dirname(os.path.realpath(__file__))
 config_path = os.path.join(folder_path, CONFIG_PATH)

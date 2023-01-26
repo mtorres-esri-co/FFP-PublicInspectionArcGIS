@@ -52,11 +52,14 @@
     "APPROVAL_SIGNATURE_ATTACH_ATT_NAME_FIELD" : "ATT_NAME",
 
     "SIGNATURE_CAPTURE_TOOL_RELATIVE_PATH" : "SignatureCaptureTool\\FFP.SignatureCapture.exe",
+    
     "SIGNATURE_CAPTURE_TOOL_FILE_PATH_COMMAND" : "-fp",
     "SIGNATURE_CAPTURE_TOOL_PARTY_NAME_COMMAND" : "-pn",
     "SIGNATURES_RELATIVE_PATH" : "Signatures",
 
     "POINTS_NAME" : "PublicInspection_Points",
     "POINTS_ID_FIELD" : "GlobalID",
-    "POINTS_TYPE_FIELD" : "type"
+    "POINTS_TYPE_FIELD" : "type",
+
+    "LAYERFILES_RELATIVE_PATH" : "LayerFiles\\{}.lyrx"
 }

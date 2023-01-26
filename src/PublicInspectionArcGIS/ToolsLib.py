@@ -20,7 +20,8 @@ class PublicInspectionTools :
     def SetupDataSource(loadDataSourcePath=None, aprx=None) :
         if loadDataSourcePath != None and aprx != None:
             configuration = PublicInspectionTools.getConfiguration()
-            tool = SetupDataSources(configuration=configuration, aprx=aprx, loadDataSourcePath=loadDataSourcePath)
+            tool = SetupDataSources(configuration=configuration, aprx=aprx)
+            tool.loadDataSourcePath = loadDataSourcePath
             tool.execute()
 
     @staticmethod
