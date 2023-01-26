@@ -27,6 +27,12 @@ if os.path.exists(config_path) :
         parties = tool.get_parties_by_spatialunit(spatialunit)
         neighboring_approvals = tool.get_neighboring_approvals(spatialunit, parties[0])
 
+        selected_spatial_units = tool.get_selected_spatialunits()
+        if len(selected_spatial_units) > 1 :
+            ToolboxLogger.warning("More than one spatial unit selected")
+        elif len(selected_spatial_units) == 0 :
+            ToolboxLogger.warning("No spatial unit selected")
+
         for neighboring_approval in neighboring_approvals :
             neighboring_approval["is_approved"] = "Yes" if neighboring_approval["is_approved"] == "No Processed" else neighboring_approval["is_approved"]
 

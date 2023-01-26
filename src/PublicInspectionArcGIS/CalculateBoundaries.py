@@ -21,7 +21,6 @@ class CalculateBoundaries(PublicInspection):
         boundary_geometry = boundary[self.GEOMETRY_FIELD]
         boundary_first_point = boundary_geometry.firstPoint
         boundary_last_point = boundary_geometry.lastPoint
-        print("Points count: {}".format(len(points)))
         count = 0
         for point in points :
             point_geometry = point[self.GEOMETRY_FIELD]
@@ -33,9 +32,10 @@ class CalculateBoundaries(PublicInspection):
                 ToolboxLogger.debug("Point '{}' is an Anchor".format(point[self.POINTS_ID_FIELD]))
                 count += 1
                 if point[self.POINTS_TYPE_FIELD] == "Vertex" :
-                    self.update_points(fields=[self.POINTS_TYPE_FIELD], values=["Anchor"], filter="{} = '{}'".format(self.POINTS_ID_FIELD, point[self.POINTS_ID_FIELD]))
+                    #self.update_points(fields=[self.POINTS_TYPE_FIELD], values=["Anchor"], filter="{} = '{}'".format(self.POINTS_ID_FIELD, point[self.POINTS_ID_FIELD]))
                     point[self.POINTS_TYPE_FIELD] = "Anchor"
                     ToolboxLogger.debug("Point '{}' updated".format(point[self.POINTS_ID_FIELD]))
+                    ToolboxLogger.info("Anchor Point updated...")
                 if count == 2:
                     ToolboxLogger.debug("Break search")
                     break
@@ -45,7 +45,7 @@ class CalculateBoundaries(PublicInspection):
             ToolboxLogger.debug("Spatial Unit 0: {}".format(su0[self.SPATIAL_UNIT_ID_FIELD]))
             geometry = su0[self.GEOMETRY_FIELD]
 
-            ToolboxLogger.info("Spatial count: {}".format(len(spatial_units))) 
+            ToolboxLogger.info("Intersecting Spatial Units to get Boundaries...") 
             for su1 in spatial_units:
                 geometry1 = su1[self.GEOMETRY_FIELD]
                 equals = geometry.equals(geometry1)
@@ -132,16 +132,22 @@ class CalculateBoundaries(PublicInspection):
     def set_boundaries(self) :
         points = self.get_points(geometry=True)
         if self.legal_id is None :
-            self.update_points(fields=[self.POINTS_TYPE_FIELD], values=["Vertex"])
+            for point in points :
+                point[self.POINTS_TYPE_FIELD] = "Vertex"
 
             spatial_units = self.get_spatialunits(geometry=True)
-            ToolboxLogger.info("SpatialUnits count {}".format(len(spatial_units)))
-            ToolboxLogger.info("Points count {}".format(len(points)))
+            ToolboxLogger.info("Spatial Units: {}".format(len(spatial_units)))
+            ToolboxLogger.info("Points: {}".format(len(points)))
 
+            index = 1
             while(len(spatial_units) > 0) :
+                ToolboxLogger.info("Spatial Unit: {}".format(index))
+                index += 1
+                
                 su0 = spatial_units.pop(0)
                 self.set_spatialunit_boundaries(su0, spatial_units, points)
         else :
+            ToolboxLogger.info("Points: {}".format(len(points)))
             layer = arcpy.management.MakeFeatureLayer(
                 in_features=os.path.join(self.inspectionDataSource, self.SPATIAL_UNIT_NAME),
                 out_layer="{}_layer".format(self.SPATIAL_UNIT_NAME),
@@ -163,8 +169,22 @@ class CalculateBoundaries(PublicInspection):
 
             su0 = [x for x in spatial_units if x[self.SPATIAL_UNIT_LEGAL_ID_FIELD] == self.legal_id][0]
             spatial_units = [x for x in spatial_units if x[self.SPATIAL_UNIT_LEGAL_ID_FIELD] != self.legal_id]
+            ToolboxLogger.info("Spatial Units: {}".format(len(spatial_units) + 1))
 
             self.set_spatialunit_boundaries(su0, spatial_units, points)
+
+        anchor_points_for_update = [p for p in points if p[self.POINTS_TYPE_FIELD] == "Anchor"]
+        ToolboxLogger.debug("Anchor Points for update: {}".format(len(anchor_points_for_update)))
+        ToolboxLogger.debug("Vertex Points: {}".format(len(points) - len(anchor_points_for_update)))
+
+        point_ids = [p[self.POINTS_ID_FIELD] for p in anchor_points_for_update]
+        self.update_points(
+            fields=[self.POINTS_TYPE_FIELD], 
+            values=["Anchor"], 
+            filter=ArcpyDataAccess.getWhereClause(self.POINTS_ID_FIELD, point_ids))
+
+        anchor_points = self.get_points(filter="{} = 'Anchor'".format(self.POINTS_TYPE_FIELD))
+        ToolboxLogger.debug("Anchor Points: {}".format(len(anchor_points)))
    
     @ToolboxLogger.log_method
     def add_boundary(self, geometry, description):

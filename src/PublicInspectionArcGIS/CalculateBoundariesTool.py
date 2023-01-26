@@ -14,7 +14,7 @@ class CalculateBoundariesTool(object):
 
         if ToolboxLogger._logger is None:
             ToolboxLogger.initLogger(handler_type = STREAM_HANDLER | ARCGIS_HANDLER )
-            ToolboxLogger.setDebugLevel()
+            ToolboxLogger.setInfoLevel()
 
         try :         
             aprx = arcpy.mp.ArcGISProject("CURRENT")

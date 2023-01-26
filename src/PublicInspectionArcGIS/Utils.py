@@ -38,6 +38,7 @@ class ToolboxLogger :
       try :
         result = func(*args, **kwargs)
       except Exception as e:
+        cls._logger.debug("Exception: {}".format(e))
         raise e
       finally :
         cls.indent = cls.indent[:-2]
@@ -82,11 +83,11 @@ class ToolboxLogger :
 
   @classmethod
   def error(cls, message) :
-    cls._logger.error("%s", "{}{}".format(cls.indent, message))
+    cls._logger.error("%s", "ERROR! {}{}".format(cls.indent, message))
 
   @classmethod
   def warning(cls, message) :
-    cls._logger.warging("%s", "{}{}".format(cls.indent, message))
+    cls._logger.warning("%s", "WARNING! {}{}".format(cls.indent, message))
 
 
 if WINDOWS:

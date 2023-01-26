@@ -9,6 +9,7 @@ class PublicInspection(object) :
     def __init__(self, configuration : Configuration, aprx : arcpy.mp.ArcGISProject) :
         self.aprx = aprx
         self.folder = self.aprx.homeFolder
+        self.pythonFolder = os.path.dirname(os.path.realpath(__file__))
 
         self.INSPECTION_DATASET_NAME = configuration.getConfigKey("INSPECTION_DATASET_NAME")
         self.INSPECTION_MAP = configuration.getConfigKey("INSPECTION_MAP")
@@ -262,6 +263,9 @@ class PublicInspection(object) :
         parties_id = [party["id"] for party in parties]
 
         boundaries = self.get_boundaries_by_spatialunit(spatialunit)
+        if not boundaries:
+            return []
+            
         boundaries_id = ["'{}'".format(boundary[self.BOUNDARY_ID_FIELD]) for boundary in boundaries]
         adjacent_spatialunits = self.get_adjacent_spatialunits(spatialunit)
 
@@ -296,6 +300,21 @@ class PublicInspection(object) :
             fields=[self.APPROVAL_ID_FIELD, self.APPROVAL_IS_APPROVED_FIELD, self.PARTY_FK_FIELD, self.BOUNDARY_FK_FIELD],
             filter="{} IN ({})".format(self.PARTY_FK_FIELD, ",".join(parties_id)))
         return approvals
+        
+    @ToolboxLogger.log_method
+    def get_selected_spatialunits(self, geometry = False) :
+        spatialunit_layer = self.get_maplayer(self.SPATIAL_UNIT_NAME)
+        selectedRows = spatialunit_layer.getSelectionSet()
+
+        if not selectedRows:
+            return []
+
+        spatial_units = self.get_spatialunits(
+            filter="{} IN ({})".format("OBJECTID", ",".join([str(record) for record in selectedRows])),
+            geometry=geometry)
+
+        return spatial_units
+
 
 
 

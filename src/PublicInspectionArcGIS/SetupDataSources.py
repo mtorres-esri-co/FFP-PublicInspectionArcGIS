@@ -21,6 +21,7 @@ class SetupDataSources(PublicInspection) :
         self.PARCEL_DATASET = configuration.getConfigKey("PARCEL_DATASET")
         self.REFERENCE_OBJECTS_DATASET = configuration.getConfigKey("REFERENCE_OBJECTS_DATASET")
         self.INSPECTION_MAP = configuration.getConfigKey("INSPECTION_MAP")
+        self.LAYERFILES_RELATIVE_PATH = configuration.getConfigKey("LAYERFILES_RELATIVE_PATH")
 
         self.TEMPORAL_ID_PATTERN = "temp_{}_id"
         self.TEMPORAL_NAME_PATTERN = "Temp {} ID"
@@ -28,18 +29,20 @@ class SetupDataSources(PublicInspection) :
 
         self.inspectionDataSource = os.path.join(self.folder, self.INSPECTION_DATASET_NAME)
         self.surveyDataSource = os.path.join(self.folder, self.SURVEY_DATASET_NAME)
+        self.layerFilesPath = os.path.join(self.pythonFolder, self.LAYERFILES_RELATIVE_PATH)
 
         ToolboxLogger.info("Proyect File:           {}".format(aprx.filePath))
         ToolboxLogger.info("Survey Data Source:     {}".format(self.surveyDataSource))
         ToolboxLogger.info("Inspection Data Source: {}".format(self.inspectionDataSource))
         ToolboxLogger.info("xml workspace File:     {}".format(self.PARCEL_XML_PATH))
+
         if self.da is not None :
             ToolboxLogger.debug("Data Access Object:     {}".format(self.da))
     
     @ToolboxLogger.log_method
     def createSurveyDataSource(self):
         file_folder_path = os.path.dirname(os.path.realpath(__file__))
-        xml_path = os.path.join(file_folder_path, self.LOAD_XML_PATH)
+        xml_path = os.path.join(self.pythonFolder, self.LOAD_XML_PATH)
         arcpy.management.ExportXMLWorkspaceDocument(self.loadDataSourcePath, xml_path)
         ToolboxLogger.info("Load data Exported")
 
@@ -52,14 +55,6 @@ class SetupDataSources(PublicInspection) :
         ToolboxLogger.info("Survey Data Imported")
 
         arcpy.management.Delete(xml_path)    
-
-    @ToolboxLogger.log_method
-    def copySurveyDataSource(self) :
-        if(os.path.exists(self.surveyDataSource)) :
-            arcpy.Delete_management(self.surveyDataSource)
-
-        shutil.copytree(self.loadDataSourcePath, self.surveyDataSource)
-        ToolboxLogger.info("Survey Dataset Created")
 
     @ToolboxLogger.log_method
     def cleanInspectionMap(self) :
@@ -145,7 +140,7 @@ class SetupDataSources(PublicInspection) :
             result_out = []
             result_out.append('0')
 
-        ToolboxLogger.info("Input Count: {} Output Count: {}".format(result_in[0], result_out[0]))
+        ToolboxLogger.debug("Input Count: {} Output Count: {}".format(result_in[0], result_out[0]))
         ToolboxLogger.info("...'{}' Data Appended".format(input_ds))
 
     @ToolboxLogger.log_method
@@ -251,13 +246,13 @@ class SetupDataSources(PublicInspection) :
         ToolboxLogger.info("Parcel Fabric Built")
 
     @ToolboxLogger.log_method
-    def createInspectionMap(self) :
+    def updateInspectionMap(self) :
         map = self.aprx.listMaps(self.INSPECTION_MAP)[0]
-        datasets = [self.PARCEL_DATASET, self.PARCEL_FABRIC_PATH, self.REFERENCE_OBJECTS_DATASET]
+        datasets = [self.REFERENCE_OBJECTS_DATASET, self.PARCEL_DATASET]
         for dataset in datasets :
             in_dataset = os.path.join(self.inspectionDataSource, dataset)  
             map.addDataFromPath(in_dataset)
-        
+
         workspace = arcpy.env.workspace
         arcpy.env.workspace = self.inspectionDataSource
         tables = [table for table in arcpy.ListTables() if not table.lower().__contains__("__attach")]
@@ -268,8 +263,23 @@ class SetupDataSources(PublicInspection) :
 
         full_extent_polygon = None
         layers =  [l for l in map.listLayers() if not l.isBasemapLayer]
+        spatialunit_layer = [l for l in layers if l.name.lower() == self.SPATIAL_UNIT_NAME.lower()][0]
+        boundary_layer = [l for l in layers if l.name.lower() == self.BOUNDARY_NAME.lower()][0]
+        map.moveLayer(spatialunit_layer, boundary_layer, "BEFORE")
+
         for layer in layers :
-            layer_file_path = os.path.join(self.folder, "{}.lyrx".format(layer.longName))
+            if layer.isFeatureLayer and layer.supports("DEFINITIONQUERY") and arcpy.Exists(layer.dataSource):
+                fields = [field for field in arcpy.ListFields(layer.dataSource) if field.name.lower() == "retiredbyrecord"]
+                if len(fields) > 0 :
+                    layer.definitionQuery = "RetiredByRecord is null"
+
+                    historic_layer = map.addDataFromPath(layer.dataSource)
+                    historic_layer.definitionQuery = "RetiredByRecord is not null"
+                    historic_layer.visible = False
+                    historic_layer.name = "Historic {}".format(layer.name)
+                    map.moveLayer(layer, historic_layer, "AFTER")
+
+            layer_file_path = os.path.join(self.layerFilesPath.format(layer.longName))
             exist = os.path.exists(layer_file_path)
             layer.visible = exist
 
@@ -286,7 +296,7 @@ class SetupDataSources(PublicInspection) :
                 lyr = lyrfile.listLayers(layer.name)[0]
                 layer.symbology = lyr.symbology
 
-                ToolboxLogger.info("Apply Symbology From Layer: {}.lyrx".format(layer.name))
+                ToolboxLogger.info("Appling Symbology From Layer: {}.lyrx".format(layer.name))
 
         extent = self.expand_extent(full_extent_polygon.extent, 1.2)
 
@@ -299,10 +309,12 @@ class SetupDataSources(PublicInspection) :
             
         try :
             self.aprx.save()
+
         except Exception as e :
             ToolboxLogger.error(e)
 
     #Validate load data source
+    @ToolboxLogger.log_method
     def validateLoadDataSource(self) :
         validation_errors = []
         if not self.loadDataSourcePath :
@@ -378,7 +390,7 @@ class SetupDataSources(PublicInspection) :
                 self.fixRelationships()
                 self.createParcelRecords()
                 self.buildParcelFabric()
-                self.createInspectionMap()
+                self.updateInspectionMap()
             else :
                 ToolboxLogger.error("Validation Errors: {}".format("\n".join(validation_errors)))
 

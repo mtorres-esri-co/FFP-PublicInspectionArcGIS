@@ -1,6 +1,4 @@
 import arcpy
-import os
-import arcpy
 
 from PublicInspectionArcGIS.Utils import ARCGIS_HANDLER, STREAM_HANDLER, ToolboxLogger
 from PublicInspectionArcGIS.ToolsLib import PublicInspectionTools

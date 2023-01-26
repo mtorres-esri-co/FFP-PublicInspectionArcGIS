@@ -18,7 +18,7 @@ class CaptureSignatures(PublicInspection) :
         self.SIGNATURE_CAPTURE_TOOL_PARTY_NAME_COMMAND = configuration.getConfigKey("SIGNATURE_CAPTURE_TOOL_PARTY_NAME_COMMAND")
         self.SIGNATURES_RELATIVE_PATH = configuration.getConfigKey("SIGNATURES_RELATIVE_PATH")
 
-        self.signatureCaptureToolPath = os.path.join(self.folder, self.SIGNATURE_CAPTURE_TOOL_RELATIVE_PATH)
+        self.signatureCaptureToolPath = os.path.join(self.pythonFolder, self.SIGNATURE_CAPTURE_TOOL_RELATIVE_PATH)
         self.signaturesPath = os.path.join(self.folder, self.SIGNATURES_RELATIVE_PATH)
 
         self.matchtableName = "MatchTable"
@@ -31,8 +31,13 @@ class CaptureSignatures(PublicInspection) :
     
     @ToolboxLogger.log_method
     def setMatchTable(self) :
+        if not arcpy.env.scratchWorkspace :
+            arcpy.env.scratchWorkspace = self.folder
+
         workspace = arcpy.env.workspace
         arcpy.env.workspace = arcpy.env.scratchGDB
+        exists = arcpy.Exists(arcpy.env.scratchGDB)
+
         exist_machtable = arcpy.Exists(self.matchtableName)
         arcpy.env.workspace = workspace
 
@@ -126,7 +131,17 @@ class CaptureSignatures(PublicInspection) :
             approvalTable.setSelectionSet([], "NEW")
             boundaryLayer.setSelectionSet([], "NEW")
 
-        if self.party and self.spatialunit:
+        if not self.spatialunit :
+            ToolboxLogger.warning("No Spatial Unit selected.")
+            return
+        elif not self.party :
+            ToolboxLogger.warning("No Party selected.")
+            return
+        elif not self.neighboring_approvals or len(self.neighboring_approvals) == 0 :
+            ToolboxLogger.warning("No Neighbors selected.")
+            return
+
+        if self.party and self.spatialunit :
             party_id = self.party["id"]
             party_name = self.party["name"]
 
@@ -178,10 +193,6 @@ class CaptureSignatures(PublicInspection) :
                     value = tuple([approval_signature[self.APPROVAL_SIGNATURE_ID_FIELD], signatureFilePath])
                     values.append(value)
 
-                    print(signatureFilePath)
-                    print(os.path.exists(signatureFilePath))
-                    print(fingerPrintFilePath)
-                    print(os.path.exists(fingerPrintFilePath))
                     if os.path.exists(fingerPrintFilePath) :
                         value = tuple([approval_signature[self.APPROVAL_SIGNATURE_ID_FIELD], fingerPrintFilePath])
                         values.append(value)

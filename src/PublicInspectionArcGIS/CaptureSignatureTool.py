@@ -34,6 +34,7 @@ class CaptureSignatureTool(object):
             parameterType="Required",
             direction="Input",
         )
+
         params.insert(self.Params["legal_id"], param)
 
         param = arcpy.Parameter(
@@ -50,7 +51,7 @@ class CaptureSignatureTool(object):
             displayName="Boundaries Approvals",
             name="neighbors_approvals",
             datatype="DETable",
-            parameterType="Required",
+            parameterType="Optional",
             direction="Input",
             enabled=False
         )
@@ -70,7 +71,18 @@ class CaptureSignatureTool(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+
         if not parameters[self.Params["legal_id"]].altered :
+            selected_spatialunits = self.tool.get_selected_spatialunits()
+            legal_ids = [spatialunit["legal_id"] for spatialunit in selected_spatialunits]
+
+            if len(legal_ids) > 0:
+                parameters[self.Params["legal_id"]].filter.list = legal_ids
+                parameters[self.Params["legal_id"]].value = None
+            else :
+                parameters[self.Params["legal_id"]].filter.list = None
+                parameters[self.Params["legal_id"]].value = None
+
             parameters[self.Params["party_name"]].enabled = False
             parameters[self.Params["party_name"]].filter.list = []
             parameters[self.Params["party_name"]].value = None
@@ -91,7 +103,7 @@ class CaptureSignatureTool(object):
                 party_names = [party["name"] for party in parties]
                 parameters[self.Params["party_name"]].enabled = len(party_names) > 0
                 parameters[self.Params["party_name"]].filter.list = party_names
-                ##parameters[self.Params["party_name"]].value = party_names[0] if len(party_names) == 1 else None
+                parameters[self.Params["party_name"]].value = None
 
             parameters[self.Params["neighbors_approvals"]].enabled = False
             parameters[self.Params["neighbors_approvals"]].values = []
@@ -135,10 +147,15 @@ class CaptureSignatureTool(object):
 
             if self.tool.spatialunit and self.tool.party:
                 self.tool.neighboring_approvals = self.tool.get_neighboring_approvals(self.tool.spatialunit, self.tool.party)
-                for value in value_table:
-                    for approval in self.tool.neighboring_approvals:
-                        if approval["neighbors"] == value[0]:
-                            approval["is_approved"] = value[1]
-                self.tool.execute()
+                if value_table:
+                    for value in value_table:
+                        for approval in self.tool.neighboring_approvals:
+                            if approval["neighbors"] == value[0]:
+                                approval["is_approved"] = value[1]
+                    self.tool.execute()
+                else :
+                    ToolboxLogger.warning("No approvals selected")
+            else:
+                ToolboxLogger.warning("No spatial unit or party found")
 
         return        
